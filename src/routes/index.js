@@ -1,5 +1,7 @@
 import { Router } from "express";
-import articleRoutes from "./article.js";
+import blogRoutes from "./blogs.js";
+
 const router = Router();
-router.use("/article", articleRoutes);
+router.use("/blogs", blogRoutes);
+
 export default router;
