@@ -8,13 +8,10 @@ import { embedLLM } from "../clients/llmClient.js";
 export const scrapeHandler = async (req, res) => {
   try {
     console.log("Starting to scrape SLO CAL blog");
-    const limit = req.query.limit ? parseInt(req.query.limit) : undefined;
+    const limit = req.query.limit ? parseInt(req.query.limit) : null;
 
     if (!limit) {
-      return res.status(400).json({
-        success: false,
-        error: "Limit is required",
-      });
+      console.log("No limit provided, scraping all blogs");
     }
 
     const result = await scrapeAllContent(limit);
@@ -52,23 +49,6 @@ export const processBlogsHandler = async (req, res) => {
 
 export const getRecommendationsHandler = async (req, res) => {
   try {
-    const { activities, exertionLevel, group, priceRange } = req.body;
-
-    // // Basic validation
-    // if (!activities || !Array.isArray(activities) || activities.length === 0) {
-    //   return res.status(400).json({
-    //     success: false,
-    //     error: "Activities array is required",
-    //   });
-    // }
-
-    // const preferences = {
-    //   activities,
-    //   exertionLevel: parseInt(exertionLevel) || 3,
-    //   group: group || "",
-    //   priceRange: priceRange || "$$",
-    // };
-
     const results = await getRecommendedBlogs(req.body);
 
     res.json({

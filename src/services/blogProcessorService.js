@@ -1,5 +1,6 @@
 import { embedLLM } from "../clients/llmClient.js";
 import { supabase } from "../clients/supabase.js";
+import { generateContentMetadata } from "../services/llmService.js";
 import fs from "fs/promises";
 import path from "path";
 import os from "os";
@@ -42,13 +43,12 @@ export const processBlogs = async () => {
           url,
         } = blogData;
 
+        // Generate content metadata
+        const contentMetadata = await generateContentMetadata(mainContent);
+
         // Create a string representation for embedding
         const textToEmbed = JSON.stringify({
-          title,
-          summary,
-          publishDate,
-          categories: categories.map((c) => c.name),
-          tags: tags.map((t) => t.name),
+          contentMetadata,
         });
 
         // Generate embedding
@@ -73,6 +73,7 @@ export const processBlogs = async () => {
           summary,
           categories,
           tags,
+          content_metadata: contentMetadata,
           embedding,
           embedding_text: textToEmbed,
         });

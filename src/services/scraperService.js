@@ -164,7 +164,7 @@ const scrapeCategoryPage = async (url, baseUrl, page = 1) => {
 };
 
 // Main service functions
-export const scrapeAllContent = async (limit) => {
+export const scrapeAllContent = async (limit = null) => {
   const baseUrl = "https://www.slocal.com";
   const mainPageUrl = "https://www.slocal.com/blog/";
   const mainPageResponse = await axios.get(mainPageUrl);
