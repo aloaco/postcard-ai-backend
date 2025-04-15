@@ -5,6 +5,11 @@ import { supabase } from "../clients/supabase.js";
 const duplicateBlogsToTargetCount = (blogs, targetCount) => {
   const duplicatedBlogs = [...blogs];
 
+  // If we already have more blogs than the target count, cut the array
+  if (duplicatedBlogs.length > targetCount) {
+    return duplicatedBlogs.slice(0, targetCount);
+  }
+
   while (duplicatedBlogs.length < targetCount) {
     // Get the next blog to duplicate (cycling through the original list)
     const originalBlog = blogs[duplicatedBlogs.length % blogs.length];
@@ -35,7 +40,7 @@ export const useLLMRanking = async (preferences) => {
     console.log(`Original blog count: ${blogs.length}`);
 
     // Duplicate blogs to reach 1000 entries
-    const expandedBlogs = duplicateBlogsToTargetCount(blogs, 1000);
+    const expandedBlogs = duplicateBlogsToTargetCount(blogs, 200);
     console.log(`Expanded blog count for testing: ${expandedBlogs.length}`);
 
     // Prepare the blogs data for ranking
@@ -57,9 +62,20 @@ export const useLLMRanking = async (preferences) => {
     Blog Posts to Rank:
     ${JSON.stringify(blogsData, null, 2)}
     
-    Please return a JSON array of blog ids in order of relevance, from most to least relevant.
-    Only return the array of ids, nothing else. Do not include any other text or formatting.
+    Please return a JSON array of objects with the following structure:
+    [
+      {
+        "id": "blog_id",
+        "score": numeric_score_between_0_and_100
+      },
+      ...
+    ]
+    
+    Sort the array by score in descending order (highest scores first).
+    Only return the JSON array, nothing else. Do not include any other text or formatting.
     `;
+
+    console.log("entering response");
 
     // Get ranking from LLM
     const response = await genLLM.chat.completions.create({
@@ -76,20 +92,40 @@ export const useLLMRanking = async (preferences) => {
       },
     });
 
+    console.log("completed response");
+
     // Use regex to extract the first complete array from the response
     const responseContent = response.choices[0].message.content.trim();
 
-    const arrayMatch = responseContent.match(/\[[\s\S]*?\]/);
-
-    if (!arrayMatch) {
-      throw new Error("No valid array found in the LLM response");
+    let parsedResponse;
+    try {
+      // Attempt to parse the entire response as JSON
+      parsedResponse = JSON.parse(responseContent);
+    } catch (e) {
+      // If full parsing fails, try to extract just the array using regex
+      const arrayMatch = responseContent.match(/\[[\s\S]*?\]/);
+      if (!arrayMatch) {
+        throw new Error("No valid array found in the LLM response");
+      }
+      try {
+        parsedResponse = JSON.parse(arrayMatch[0]);
+      } catch (e) {
+        throw new Error("Failed to parse LLM response as JSON");
+      }
     }
 
-    const rankedBlogs = JSON.parse(arrayMatch[0]);
+    if (!Array.isArray(parsedResponse)) {
+      throw new Error("LLM response is not an array");
+    }
+
+    // Extract the blog IDs in ranked order
+    const rankedBlogs = parsedResponse.map((item) =>
+      typeof item === "object" && item !== null ? item.id : String(item)
+    );
 
     // Map the ranked titles back to full blog data
     const rankedBlogsWithData = rankedBlogs
-      .map((id) => {
+      .map((id, index) => {
         // Find in the expanded blogs list
         const blog = expandedBlogs.find((b) => String(b.id) === String(id));
 
@@ -98,9 +134,17 @@ export const useLLMRanking = async (preferences) => {
           return null;
         }
 
+        // Get reasoning and score if available
+        const rankingInfo = parsedResponse[index];
+        const score =
+          typeof rankingInfo === "object" && rankingInfo !== null
+            ? rankingInfo.score
+            : null;
+
         return {
           id: blog.id,
           title: blog.title,
+          score,
           summary: blog.summary,
           url: blog.url,
           content_metadata: blog.content_metadata,
@@ -123,12 +167,10 @@ export const useLLMRanking = async (preferences) => {
       metric: {
         duration,
         usage: response.usage,
-        originalBlogCount: blogs.length,
-        expandedBlogCount: expandedBlogs.length,
+        total: expandedBlogs.length,
       },
       preferences,
       recommendations: rankedBlogsWithData,
-      totalBlogs: expandedBlogs.length,
     };
   } catch (error) {
     console.error("Error getting blog recommendations:", error);
