@@ -26,7 +26,11 @@ const duplicateBlogsToTargetCount = (blogs, targetCount) => {
   return duplicatedBlogs;
 };
 
-export const useLLMRanking = async (preferences) => {
+export const useLLMRanking = async (
+  preferences,
+  model = "google/gemini-2.0-flash-001",
+  targetCount = 5
+) => {
   try {
     const startTime = new Date();
 
@@ -40,7 +44,7 @@ export const useLLMRanking = async (preferences) => {
     console.log(`Original blog count: ${blogs.length}`);
 
     // Duplicate blogs to reach 1000 entries
-    const expandedBlogs = duplicateBlogsToTargetCount(blogs, 200);
+    const expandedBlogs = duplicateBlogsToTargetCount(blogs, targetCount);
     console.log(`Expanded blog count for testing: ${expandedBlogs.length}`);
 
     // Prepare the blogs data for ranking
@@ -75,11 +79,9 @@ export const useLLMRanking = async (preferences) => {
     Only return the JSON array, nothing else. Do not include any other text or formatting.
     `;
 
-    console.log("entering response");
-
     // Get ranking from LLM
     const response = await genLLM.chat.completions.create({
-      model: "google/gemini-2.0-flash-001",
+      model: model,
       messages: [
         {
           role: "user",
@@ -89,62 +91,61 @@ export const useLLMRanking = async (preferences) => {
       temperature: 0.7,
       response_format: {
         type: "json_schema",
+        json_schema: {
+          name: "ranking",
+          schema: {
+            type: "object",
+            properties: {
+              ranked_blogs: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    id: { type: "string" },
+                    score: { type: "number" },
+                  },
+                  required: ["id", "score"],
+                },
+              },
+            },
+            required: ["ranked_blogs"],
+          },
+        },
       },
     });
 
-    console.log("completed response");
-
-    // Use regex to extract the first complete array from the response
+    // Parse the JSON response
     const responseContent = response.choices[0].message.content.trim();
+    const parsedResponse = JSON.parse(responseContent);
 
-    let parsedResponse;
-    try {
-      // Attempt to parse the entire response as JSON
-      parsedResponse = JSON.parse(responseContent);
-    } catch (e) {
-      // If full parsing fails, try to extract just the array using regex
-      const arrayMatch = responseContent.match(/\[[\s\S]*?\]/);
-      if (!arrayMatch) {
-        throw new Error("No valid array found in the LLM response");
-      }
-      try {
-        parsedResponse = JSON.parse(arrayMatch[0]);
-      } catch (e) {
-        throw new Error("Failed to parse LLM response as JSON");
-      }
+    // Get the ranked blogs from the parsed response
+    const rankedBlogsWithScores = parsedResponse.ranked_blogs;
+
+    if (!rankedBlogsWithScores || !Array.isArray(rankedBlogsWithScores)) {
+      throw new Error("No valid ranked_blogs array found in the LLM response");
     }
 
-    if (!Array.isArray(parsedResponse)) {
-      throw new Error("LLM response is not an array");
-    }
+    // Extract just the IDs for backward compatibility
+    const rankedBlogIds = rankedBlogsWithScores.map((item) => item.id);
 
-    // Extract the blog IDs in ranked order
-    const rankedBlogs = parsedResponse.map((item) =>
-      typeof item === "object" && item !== null ? item.id : String(item)
-    );
-
-    // Map the ranked titles back to full blog data
-    const rankedBlogsWithData = rankedBlogs
-      .map((id, index) => {
+    // Map the ranked blogs back to full blog data with scores
+    const rankedBlogsWithData = rankedBlogsWithScores
+      .map((rankItem) => {
         // Find in the expanded blogs list
-        const blog = expandedBlogs.find((b) => String(b.id) === String(id));
+        const blog = expandedBlogs.find(
+          (b) => String(b.id) === String(rankItem.id)
+        );
 
         if (!blog) {
-          console.warn(`Blog with id ${id} not found in expanded list`);
+          console.warn(
+            `Blog with id ${rankItem.id} not found in expanded list`
+          );
           return null;
         }
-
-        // Get reasoning and score if available
-        const rankingInfo = parsedResponse[index];
-        const score =
-          typeof rankingInfo === "object" && rankingInfo !== null
-            ? rankingInfo.score
-            : null;
 
         return {
           id: blog.id,
           title: blog.title,
-          score,
           summary: blog.summary,
           url: blog.url,
           content_metadata: blog.content_metadata,
@@ -156,6 +157,7 @@ export const useLLMRanking = async (preferences) => {
             blog.tags && blog.tags.length > 0
               ? blog.tags.map((t) => t.name)
               : [],
+          score: rankItem.score, // Include the relevance score
         };
       })
       .filter(Boolean); // Filter out any null values
