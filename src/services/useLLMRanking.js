@@ -66,18 +66,14 @@ export const useLLMRanking = async (
     Blog Posts to Rank:
     ${JSON.stringify(blogsData, null, 2)}
     
-    Please return a JSON array of objects with the following structure:
-    [
-      {
-        "id": "blog_id",
-        "score": numeric_score_between_0_and_100
-      },
-      ...
-    ]
-    
-    Sort the array by score in descending order (highest scores first).
-    Only return the JSON array, nothing else. Do not include any other text or formatting.
+    Please return a JSON array of blog ids in order of relevance, from most to least relevant. Do not include any other text or formatting.
+    Example:
+    {
+      "ranked_ids": ["1", "2", "3", "4", "5"]
+    }
     `;
+
+    console.log("prompt", prompt);
 
     // Get ranking from LLM
     const response = await genLLM.chat.completions.create({
@@ -96,50 +92,41 @@ export const useLLMRanking = async (
           schema: {
             type: "object",
             properties: {
-              ranked_blogs: {
+              ranked_ids: {
                 type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    id: { type: "string" },
-                    score: { type: "number" },
-                  },
-                  required: ["id", "score"],
-                },
+                items: { type: "string" },
               },
             },
-            required: ["ranked_blogs"],
+            required: ["ranked_ids"],
           },
         },
       },
     });
 
+    console.log("response", response);
+
     // Parse the JSON response
     const responseContent = response.choices[0].message.content.trim();
+
+    console.log("responseContent", responseContent);
+
     const parsedResponse = JSON.parse(responseContent);
 
-    // Get the ranked blogs from the parsed response
-    const rankedBlogsWithScores = parsedResponse.ranked_blogs;
+    // Get the ranked IDs from the parsed response
+    const rankedBlogs = parsedResponse.ranked_ids;
 
-    if (!rankedBlogsWithScores || !Array.isArray(rankedBlogsWithScores)) {
-      throw new Error("No valid ranked_blogs array found in the LLM response");
+    if (!rankedBlogs || !Array.isArray(rankedBlogs)) {
+      throw new Error("No valid ranked_ids array found in the LLM response");
     }
 
-    // Extract just the IDs for backward compatibility
-    const rankedBlogIds = rankedBlogsWithScores.map((item) => item.id);
-
-    // Map the ranked blogs back to full blog data with scores
-    const rankedBlogsWithData = rankedBlogsWithScores
-      .map((rankItem) => {
+    // Map the ranked titles back to full blog data
+    const rankedBlogsWithData = rankedBlogs
+      .map((id) => {
         // Find in the expanded blogs list
-        const blog = expandedBlogs.find(
-          (b) => String(b.id) === String(rankItem.id)
-        );
+        const blog = expandedBlogs.find((b) => String(b.id) === String(id));
 
         if (!blog) {
-          console.warn(
-            `Blog with id ${rankItem.id} not found in expanded list`
-          );
+          console.warn(`Blog with id ${id} not found in expanded list`);
           return null;
         }
 
@@ -157,7 +144,6 @@ export const useLLMRanking = async (
             blog.tags && blog.tags.length > 0
               ? blog.tags.map((t) => t.name)
               : [],
-          score: rankItem.score, // Include the relevance score
         };
       })
       .filter(Boolean); // Filter out any null values
