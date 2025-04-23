@@ -1,7 +1,7 @@
 import { embedLLM } from "../clients/llmClient.js";
 import { supabase } from "../clients/supabase.js";
 
-export const useVectorRanking = async (preferences) => {
+export const useVectorRanking = async (preferences, targetCount) => {
   try {
     const stringifiedPreferences = JSON.stringify(preferences);
 
@@ -19,7 +19,7 @@ export const useVectorRanking = async (preferences) => {
       {
         query_embedding: embedding,
         match_threshold: 0.1,
-        match_count: 5,
+        match_count: targetCount,
       }
     );
 

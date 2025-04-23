@@ -17,7 +17,7 @@ export const getRecommendedBlogs = async (body) => {
       case "llm":
         return useLLMRanking(preferences, model, targetCount);
       case "reranker":
-        return useReranker(preferences, model);
+        return useReranker(preferences, targetCount);
       default:
         throw new Error("Invalid search type");
     }

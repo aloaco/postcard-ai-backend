@@ -1,8 +1,8 @@
 import cohere from "../clients/cohore.js";
 import { useVectorRanking } from "./useVectorRanking.js";
 
-export const useReranker = async (preferences, model) => {
-  const vectorRanking = await useVectorRanking(preferences);
+export const useReranker = async (preferences, targetCount) => {
+  const vectorRanking = await useVectorRanking(preferences, targetCount);
 
   let documents = [];
 
@@ -16,7 +16,7 @@ export const useReranker = async (preferences, model) => {
     model: "rerank-v3.5",
     query: query,
     documents: documents,
-    top_n: 5,
+    top_n: targetCount,
   });
 
   const rerankedBlogs = response.results.map((result) => {
