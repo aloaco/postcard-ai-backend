@@ -1,7 +1,7 @@
 import { embedLLM } from "../clients/llmClient.js";
 import { supabase } from "../clients/supabase.js";
 
-export const useVectorRanking = async (preferences, useReranker = false) => {
+export const useVectorRanking = async (preferences) => {
   try {
     const stringifiedPreferences = JSON.stringify(preferences);
 
