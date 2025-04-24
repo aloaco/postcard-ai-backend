@@ -19,12 +19,15 @@ export const useReranker = async (preferences, targetCount) => {
     top_n: targetCount,
   });
 
+  console.log(response.results.length);
+
   const rerankedBlogs = response.results.map((result) => {
-    return vectorRanking.recommendations[result.index];
+    let blog = vectorRanking.recommendations[result.index];
+    blog.similarity = result.relevanceScore;
+    return blog;
   });
 
   return {
-    rerankedBlogs: rerankedBlogs,
-    vectorRanking: vectorRanking,
+    rerankedBlogs,
   };
 };
