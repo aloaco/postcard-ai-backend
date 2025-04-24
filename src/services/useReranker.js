@@ -1,7 +1,8 @@
 import cohere from "../clients/cohore.js";
 import { useVectorRanking } from "./useVectorRanking.js";
+import { useRulesPostProcessor } from "./useRulesPostProcessor.js";
 
-export const useReranker = async (preferences, targetCount) => {
+export const useReranker = async (preferences, targetCount, rules = null) => {
   const vectorRanking = await useVectorRanking(preferences, targetCount);
 
   let documents = [];
@@ -19,15 +20,26 @@ export const useReranker = async (preferences, targetCount) => {
     top_n: targetCount,
   });
 
-  console.log(response.results.length);
-
   const rerankedBlogs = response.results.map((result) => {
     let blog = vectorRanking.recommendations[result.index];
     blog.similarity = result.relevanceScore;
     return blog;
   });
 
+  // Apply post-processing rules if provided
+  let processedBlogs;
+  if (rules) {
+    processedBlogs = await useRulesPostProcessor(rerankedBlogs, rules);
+  } else {
+    processedBlogs = rerankedBlogs;
+  }
+
+  // Re-sort blogs by similarity after applying rules
+  const sortedBlogs = [...processedBlogs].sort(
+    (a, b) => b.similarity - a.similarity
+  );
+
   return {
-    rerankedBlogs,
+    rerankedBlogs: sortedBlogs,
   };
 };

@@ -9,15 +9,16 @@ export const getRecommendedBlogs = async (body) => {
       searchType,
       model = "google/gemini-2.0-flash-001",
       targetCount = 5,
+      rules = null,
     } = body;
 
     switch (searchType) {
       case "vector":
-        return useVectorRanking(preferences, useReranker);
+        return useVectorRanking(preferences, targetCount);
       case "llm":
         return useLLMRanking(preferences, model, targetCount);
       case "reranker":
-        return useReranker(preferences, targetCount);
+        return useReranker(preferences, targetCount, rules);
       default:
         throw new Error("Invalid search type");
     }
