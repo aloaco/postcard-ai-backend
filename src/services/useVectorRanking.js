@@ -33,11 +33,17 @@ export const useVectorRanking = async (preferences, targetCount) => {
         return {
           id: blog.id,
           title: blog.title,
-          similarity: blog.similarity,
+          post_id: blog.post_id,
+          publish_date: blog.publish_date,
+          featured_image: blog.featured_image,
           summary: blog.summary,
           url: blog.url,
           content_metadata: blog.content_metadata,
           embedding_text: blog.embedding_text,
+          author: blog.author,
+          similarity: blog.similarity,
+          appliedModifier: blog.appliedModifier,
+          tags: blog.tags,
         };
       }),
     };
