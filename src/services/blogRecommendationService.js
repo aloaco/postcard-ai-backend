@@ -10,6 +10,7 @@ export const getRecommendedBlogs = async (body) => {
       model = "google/gemini-2.0-flash-001",
       targetCount = 5,
       rules = null,
+      rerankerEnabled = false,
     } = body;
 
     switch (searchType) {
@@ -18,7 +19,7 @@ export const getRecommendedBlogs = async (body) => {
       case "llm":
         return useLLMRanking(preferences, model, targetCount);
       case "reranker":
-        return useReranker(preferences, targetCount, rules);
+        return useReranker(preferences, targetCount, rules, rerankerEnabled);
       default:
         throw new Error("Invalid search type");
     }
