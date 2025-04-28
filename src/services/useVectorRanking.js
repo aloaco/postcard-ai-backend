@@ -44,6 +44,7 @@ export const useVectorRanking = async (preferences, targetCount) => {
           similarity: blog.similarity,
           appliedModifier: blog.appliedModifier,
           tags: blog.tags,
+          is_duplicate: blog.is_duplicate,
         };
       }),
     };

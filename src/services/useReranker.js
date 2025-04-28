@@ -8,6 +8,7 @@ export const useReranker = async (
   rules = null,
   rerankerEnabled = false
 ) => {
+  console.log("reranker", preferences, targetCount, rules, rerankerEnabled);
   const vectorRanking = await useVectorRanking(preferences, targetCount);
 
   let processedBlogs;
