@@ -79,8 +79,6 @@ Postcard AI Backend is a Node.js API service that powers the Postcard AI travel 
 The application uses Supabase with the following main tables:
 
 - `blogs`: Stores blog posts with vector embeddings
-- `categories`: Blog categories
-- `tags`: Blog tags
 
 ## Deployment
 
